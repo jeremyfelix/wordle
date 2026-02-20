@@ -4992,10 +4992,8 @@ gormy
 gorps
 gorse
 gorsy
-gosht
 gosse
 gotch
-goths
 gothy
 gotta
 gouch
@@ -5654,7 +5652,6 @@ hosts
 hotch
 hotel
 hoten
-hotis
 hotly
 hotte
 hotty
@@ -7978,7 +7975,6 @@ moten
 motes
 motet
 motey
-moths
 mothy
 motif
 motis
@@ -13182,7 +13178,6 @@ togas
 toged
 toges
 togue
-tohos
 toidy
 toile
 toils
@@ -13244,7 +13239,6 @@ toper
 topes
 tophe
 tophi
-tophs
 topic
 topis
 topoi
@@ -13273,7 +13267,6 @@ torus
 tosas
 tosed
 toses
-toshy
 tossy
 tosyl
 total
