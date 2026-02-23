@@ -3557,7 +3557,6 @@ dwams
 dwamy
 dwang
 dwarf
-dwaum
 dweeb
 dwell
 dwelt
@@ -5824,7 +5823,6 @@ imago
 imagy
 imams
 imari
-imaum
 imbar
 imbed
 imbos
@@ -7645,7 +7643,6 @@ mezzo
 mgals
 mhorr
 miais
-miaou
 miaow
 miasm
 miaul
@@ -10142,7 +10139,6 @@ quail
 quair
 quais
 quake
-quaky
 quale
 qualm
 qualy
@@ -10157,9 +10153,7 @@ quasi
 quass
 quate
 quats
-quawk
 quaws
-quayd
 quays
 qubit
 quean
