@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Wordle word filter: Takes guesses with tile colors and filters words.txt to remaining solutions.
+Wordle word filter: Takes guesses with tile colors and filters words.txt to
+remaining solutions.
 
 Usage:
     python3 wordle.py --black "letters" pattern1 pattern2 ...
@@ -31,12 +32,14 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
     Parse guess patterns into constraints.
 
     Returns:
-        {
-            'green': {position: letter, ...},  # position -> required letter
-            'yellow': {letter: [excluded_positions, ...], ...},  # letter -> list of bad positions
-            'black': set(),  # letters definitely not in word
-            'doubled': {letter: min_required, ...},  # 'letter': minimum required occurrences (int)
-        }
+    {
+        'green': {position: letter, ...},  # position -> required letter
+        'yellow': {letter: [excluded_positions, ...], ...},  # letter -> list
+            of bad positions
+        'black': set(),  # letters definitely not in word
+        'doubled': {letter: min_required, ...},  # 'letter': minimum required
+            occurrences (int)
+    }
     """
     green = {}
     yellow = defaultdict(list)
@@ -48,7 +51,7 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
         if len(pattern) != 5:
             raise ValueError(f"Pattern must be 5 characters: {pattern}")
 
-        guess_letters = []
+        guess_letters: list[tuple[str | None, str, int]] = []
         for pos, char in enumerate(pattern):
             if char.isupper():
                 # Green tile
@@ -68,16 +71,18 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
 
     # Infer doubled letter constraints (minimum required occurrences)
     doubled = {}
-    letter_data = defaultdict(lambda: {"green_pos": set(), "yellow_pos": set()})
+    letter_data: defaultdict[str | None, dict[str, set]] = defaultdict(
+        lambda: {"green_pos": set(), "yellow_pos": set()}
+    )
 
-    # Collect per-guess counts: maximum number of colored occurrences of a letter
-    # seen within any single guess. This (rather than summing across guesses)
-    # avoids inferring duplicates when the same letter was colored in different
-    # guesses but only one copy exists.
-    max_in_guess = defaultdict(int)
+    # Collect per-guess counts: maximum number of colored occurrences of a
+    # letter seen within any single guess. This (rather than summing across
+    # guesses) avoids inferring duplicates when the same letter was colored in
+    # different guesses but only one copy exists.
+    max_in_guess: defaultdict[str | None, int] = defaultdict(int)
 
     for guess in all_guesses:
-        counts = defaultdict(int)
+        counts: defaultdict[str, int] = defaultdict(int)
         for letter, state, pos in guess:
             if letter:
                 if state == "green":
@@ -182,7 +187,8 @@ def filter_words(words: list[str], constraints: dict) -> list[str]:
         # Check doubled letter constraints
         for letter, constraint in doubled.items():
             count = word.count(letter)
-            # If constraint is an integer, it's the minimum required occurrences
+            # If constraint is an integer, it's the minimum required
+            # occurrences
             if isinstance(constraint, int):
                 if count < constraint:
                     valid = False
@@ -237,7 +243,9 @@ def prune_words(words: list[str], words_file: Path) -> None:
         return
 
     selected_words = set(
-        word.strip() for word in result.stdout.strip().split("\n") if word.strip()
+        word.strip()
+        for word in result.stdout.strip().split("\n")
+        if word.strip()
     )
 
     if not selected_words:
@@ -294,7 +302,7 @@ Pattern format (5 characters per pattern):
 
 Example (two guesses):
   $ python3 wordle.py --black "dukfiht" ".R.n." "..g.."
-  
+
   This filters for words where:
     - No d, u, k, f, i, h, t (black letters)
     - Position 1 is 'r' (green from DRUNK)
@@ -306,10 +314,13 @@ Example (two guesses):
         "--black",
         type=str,
         default="",
-        help="Letters that returned black tiles (space/comma-separated or as one string)",
+        help="Letters that returned black tiles (space/comma-separated or as"
+        " one string)",
     )
     parser.add_argument(
-        "--count", action="store_true", help="Show only the count of remaining words"
+        "--count",
+        action="store_true",
+        help="Show only the count of remaining words",
     )
     parser.add_argument(
         "--prune",
