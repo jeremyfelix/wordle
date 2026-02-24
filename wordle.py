@@ -17,8 +17,11 @@ Examples:
 """
 
 import argparse
+import os
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from collections import defaultdict
 
@@ -32,7 +35,7 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
             'green': {position: letter, ...},  # position -> required letter
             'yellow': {letter: [excluded_positions, ...], ...},  # letter -> list of bad positions
             'black': set(),  # letters definitely not in word
-            'doubled': {letter: constraint, ...},  # 'letter': 'required' | 'only_once'
+            'doubled': {letter: min_required, ...},  # 'letter': minimum required occurrences (int)
         }
     """
     green = {}
@@ -63,34 +66,50 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
 
         all_guesses.append(guess_letters)
 
-    # Infer doubled letter constraints
+    # Infer doubled letter constraints (minimum required occurrences)
     doubled = {}
-    letter_data = defaultdict(
-        lambda: {"green_pos": set(), "yellow_pos": set()}
-    )
+    letter_data = defaultdict(lambda: {"green_pos": set(), "yellow_pos": set()})
 
-    # Collect all positions for each letter state
+    # Collect per-guess counts: maximum number of colored occurrences of a letter
+    # seen within any single guess. This (rather than summing across guesses)
+    # avoids inferring duplicates when the same letter was colored in different
+    # guesses but only one copy exists.
+    max_in_guess = defaultdict(int)
+
     for guess in all_guesses:
+        counts = defaultdict(int)
         for letter, state, pos in guess:
             if letter:
                 if state == "green":
                     letter_data[letter]["green_pos"].add(pos)
                 elif state == "yellow":
                     letter_data[letter]["yellow_pos"].add(pos)
+                if state in ("green", "yellow"):
+                    counts[letter] += 1
 
-    # Analyze doubled letters
-    for letter, data in letter_data.items():
-        green_pos = data["green_pos"]
-        yellow_pos = data["yellow_pos"]
+        for letter, cnt in counts.items():
+            if cnt > max_in_guess[letter]:
+                max_in_guess[letter] = cnt
 
+    # For each letter, determine the minimum required occurrences. We require
+    # multiple copies only when:
+    #  - a single guess showed multiple colored copies of the letter (e.g. two
+    #    't's in one guess), or
+    #  - the letter appears green in one position and yellow in another (across
+    #    guesses), which implies at least two copies.
+    for letter in set(list(letter_data.keys()) + list(max_in_guess.keys())):
+        max_single = max_in_guess.get(letter, 0)
+        green_pos = letter_data[letter]["green_pos"]
+        yellow_pos = letter_data[letter]["yellow_pos"]
+
+        min_required = max_single
         if len(green_pos) >= 2:
-            # Letter appears green at 2+ different positions -> definitely has 2+ copies
-            doubled[letter] = "required"
+            min_required = max(min_required, 2)
         elif len(green_pos) >= 1 and len(yellow_pos) >= 1:
-            # Letter appears green at one position AND yellow at another -> has 2+ copies
-            doubled[letter] = "required"
-        # Note: Yellow at multiple positions doesn't necessarily mean 2+ copies
-        # (the letter could be at a third position). So we don't infer from that.
+            min_required = max(min_required, 2)
+
+        if min_required >= 2:
+            doubled[letter] = min_required
 
     return {
         "green": green,
@@ -163,12 +182,19 @@ def filter_words(words: list[str], constraints: dict) -> list[str]:
         # Check doubled letter constraints
         for letter, constraint in doubled.items():
             count = word.count(letter)
-            if constraint == "required" and count < 2:
-                valid = False
-                break
-            elif constraint == "only_once" and count > 1:
-                valid = False
-                break
+            # If constraint is an integer, it's the minimum required occurrences
+            if isinstance(constraint, int):
+                if count < constraint:
+                    valid = False
+                    break
+            elif constraint == "required":
+                if count < 2:
+                    valid = False
+                    break
+            elif constraint == "only_once":
+                if count > 1:
+                    valid = False
+                    break
 
         if not valid:
             continue
@@ -176,6 +202,84 @@ def filter_words(words: list[str], constraints: dict) -> list[str]:
         filtered.append(word)
 
     return filtered
+
+
+def prune_words(words: list[str], words_file: Path) -> None:
+    """
+    Use fzf to select words to remove from words.txt.
+    """
+    if not words:
+        print("No words to prune.")
+        return
+
+    # Create a temporary list of words to select from
+    words_str = "\n".join(sorted(words, reverse=True))
+
+    try:
+        # Open fzf with multi-select
+        result = subprocess.run(
+            ["fzf", "--no-sort", "--multi", "--preview", "echo {}"],
+            input=words_str,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        print(
+            "Error: fzf not found. Install fzf to use the prune option.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # If user cancelled, return
+    if result.returncode != 0:
+        print("Cancelled.")
+        return
+
+    selected_words = set(
+        word.strip() for word in result.stdout.strip().split("\n") if word.strip()
+    )
+
+    if not selected_words:
+        print("No words selected.")
+        return
+
+    # Show confirmation
+    print(f"\nWords to prune ({len(selected_words)}):")
+    for word in sorted(selected_words):
+        print(f"  - {word}")
+
+    # Ask for confirmation
+    response = input("\nProceed with pruning? (y/N): ").strip().lower()
+    if response not in ["yes", "y"]:
+        print("Cancelled.")
+        return
+
+    # Read all words from file
+    with open(words_file, "r", encoding="utf-8") as f:
+        all_words = [line.strip().lower() for line in f if line.strip()]
+
+    # Remove selected words
+    remaining_words = [w for w in all_words if w not in selected_words]
+
+    # Write back to file safely using a temporary file
+    temp_fd, temp_path = tempfile.mkstemp(dir=words_file.parent, text=True)
+    try:
+        with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
+            for word in remaining_words:
+                f.write(word + "\n")
+        # Move temp file to final location
+        os.replace(temp_path, words_file)
+    except Exception:
+        # Clean up temp file if something went wrong
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+    print(f"\nPruned {len(selected_words)} words.")
+    print(f"{len(remaining_words)} words remaining in words.txt")
 
 
 def main():
@@ -208,6 +312,11 @@ Example (two guesses):
         "--count", action="store_true", help="Show only the count of remaining words"
     )
     parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="Use fzf to select non-solution words to remove from words.txt",
+    )
+    parser.add_argument(
         "patterns", nargs="+", help="Guess patterns (5 characters each)"
     )
 
@@ -230,7 +339,9 @@ Example (two guesses):
 
     filtered = filter_words(words, constraints)
 
-    if args.count:
+    if args.prune:
+        prune_words(filtered, words_file)
+    elif args.count:
         print(len(filtered))
     else:
         for word in sorted(filtered):
