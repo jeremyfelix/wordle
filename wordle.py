@@ -49,30 +49,30 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
     # Parse each pattern
     for pattern in patterns:
         if len(pattern) != 5:
-            raise ValueError(f"Pattern must be 5 characters: {pattern}")
+            raise ValueError(f'Pattern must be 5 characters: {pattern}')
 
         guess_letters: list[tuple[str | None, str, int]] = []
         for pos, char in enumerate(pattern):
             if char.isupper():
                 # Green tile
-                guess_letters.append((char.lower(), "green", pos))
+                guess_letters.append((char.lower(), 'green', pos))
                 green[pos] = char.lower()
             elif char.islower():
                 # Yellow tile
-                guess_letters.append((char, "yellow", pos))
+                guess_letters.append((char, 'yellow', pos))
                 yellow[char].append(pos)
-            elif char == ".":
+            elif char == '.':
                 # Black tile (unknown letter, possibly in --black)
-                guess_letters.append((None, "black", pos))
+                guess_letters.append((None, 'black', pos))
             else:
-                raise ValueError(f"Invalid pattern character: {char}")
+                raise ValueError(f'Invalid pattern character: {char}')
 
         all_guesses.append(guess_letters)
 
     # Infer doubled letter constraints (minimum required occurrences)
     doubled = {}
     letter_data: defaultdict[str | None, dict[str, set]] = defaultdict(
-        lambda: {"green_pos": set(), "yellow_pos": set()}
+        lambda: {'green_pos': set(), 'yellow_pos': set()}
     )
 
     # Collect per-guess counts: maximum number of colored occurrences of a
@@ -85,11 +85,11 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
         counts: defaultdict[str, int] = defaultdict(int)
         for letter, state, pos in guess:
             if letter:
-                if state == "green":
-                    letter_data[letter]["green_pos"].add(pos)
-                elif state == "yellow":
-                    letter_data[letter]["yellow_pos"].add(pos)
-                if state in ("green", "yellow"):
+                if state == 'green':
+                    letter_data[letter]['green_pos'].add(pos)
+                elif state == 'yellow':
+                    letter_data[letter]['yellow_pos'].add(pos)
+                if state in ('green', 'yellow'):
                     counts[letter] += 1
 
         for letter, cnt in counts.items():
@@ -104,8 +104,8 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
     #    guesses), which implies at least two copies.
     for letter in set(list(letter_data.keys()) + list(max_in_guess.keys())):
         max_single = max_in_guess.get(letter, 0)
-        green_pos = letter_data[letter]["green_pos"]
-        yellow_pos = letter_data[letter]["yellow_pos"]
+        green_pos = letter_data[letter]['green_pos']
+        yellow_pos = letter_data[letter]['yellow_pos']
 
         min_required = max_single
         if len(green_pos) >= 2:
@@ -117,10 +117,10 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
             doubled[letter] = min_required
 
     return {
-        "green": green,
-        "yellow": dict(yellow),
-        "black": black,
-        "doubled": doubled,
+        'green': green,
+        'yellow': dict(yellow),
+        'black': black,
+        'doubled': doubled,
     }
 
 
@@ -133,23 +133,23 @@ def build_filter_regex(constraints: dict) -> str:
     2. For green positions, lock in the letter
     3. For yellow positions, put . (will be checked separately)
     """
-    green = constraints["green"]
-    pattern = list(".....")
+    green = constraints['green']
+    pattern = list('.....')
 
     # Place green letters
     for pos, letter in green.items():
         pattern[pos] = letter
 
-    return "^" + "".join(pattern) + "$"
+    return '^' + ''.join(pattern) + '$'
 
 
 def filter_words(words: list[str], constraints: dict) -> list[str]:
     """
     Filter words based on constraints.
     """
-    yellow = constraints["yellow"]
-    black = constraints["black"]
-    doubled = constraints["doubled"]
+    yellow = constraints['yellow']
+    black = constraints['black']
+    doubled = constraints['doubled']
 
     regex = build_filter_regex(constraints)
     pattern = re.compile(regex)
@@ -193,11 +193,11 @@ def filter_words(words: list[str], constraints: dict) -> list[str]:
                 if count < constraint:
                     valid = False
                     break
-            elif constraint == "required":
+            elif constraint == 'required':
                 if count < 2:
                     valid = False
                     break
-            elif constraint == "only_once":
+            elif constraint == 'only_once':
                 if count > 1:
                     valid = False
                     break
@@ -215,16 +215,16 @@ def prune_words(words: list[str], words_file: Path) -> None:
     Use fzf to select words to remove from words.txt.
     """
     if not words:
-        print("No words to prune.")
+        print('No words to prune.')
         return
 
     # Create a temporary list of words to select from
-    words_str = "\n".join(sorted(words, reverse=True))
+    words_str = '\n'.join(sorted(words, reverse=True))
 
     try:
         # Open fzf with multi-select
         result = subprocess.run(
-            ["fzf", "--no-sort", "--multi", "--preview", "echo {}"],
+            ['fzf', '--no-sort', '--multi', '--preview', 'echo {}'],
             input=words_str,
             capture_output=True,
             text=True,
@@ -232,39 +232,39 @@ def prune_words(words: list[str], words_file: Path) -> None:
         )
     except FileNotFoundError:
         print(
-            "Error: fzf not found. Install fzf to use the prune option.",
+            'Error: fzf not found. Install fzf to use the prune option.',
             file=sys.stderr,
         )
         sys.exit(1)
 
     # If user cancelled, return
     if result.returncode != 0:
-        print("Cancelled.")
+        print('Cancelled.')
         return
 
     selected_words = set(
         word.strip()
-        for word in result.stdout.strip().split("\n")
+        for word in result.stdout.strip().split('\n')
         if word.strip()
     )
 
     if not selected_words:
-        print("No words selected.")
+        print('No words selected.')
         return
 
     # Show confirmation
-    print(f"\nWords to prune ({len(selected_words)}):")
+    print(f'\nWords to prune ({len(selected_words)}):')
     for word in sorted(selected_words):
-        print(f"  - {word}")
+        print(f'  - {word}')
 
     # Ask for confirmation
-    response = input("\nProceed with pruning? (y/N): ").strip().lower()
-    if response not in ["yes", "y"]:
-        print("Cancelled.")
+    response = input('\nProceed with pruning? (y/N): ').strip().lower()
+    if response not in ['yes', 'y']:
+        print('Cancelled.')
         return
 
     # Read all words from file
-    with open(words_file, "r", encoding="utf-8") as f:
+    with open(words_file, 'r', encoding='utf-8') as f:
         all_words = [line.strip().lower() for line in f if line.strip()]
 
     # Remove selected words
@@ -273,9 +273,9 @@ def prune_words(words: list[str], words_file: Path) -> None:
     # Write back to file safely using a temporary file
     temp_fd, temp_path = tempfile.mkstemp(dir=words_file.parent, text=True)
     try:
-        with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
+        with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
             for word in remaining_words:
-                f.write(word + "\n")
+                f.write(word + '\n')
         # Move temp file to final location
         os.replace(temp_path, words_file)
     except Exception:
@@ -286,13 +286,13 @@ def prune_words(words: list[str], words_file: Path) -> None:
             pass
         raise
 
-    print(f"\nPruned {len(selected_words)} words.")
-    print(f"{len(remaining_words)} words remaining in words.txt")
+    print(f'\nPruned {len(selected_words)} words.')
+    print(f'{len(remaining_words)} words remaining in words.txt')
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Filter Wordle words based on guess results.",
+        description='Filter Wordle words based on guess results.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Pattern format (5 characters per pattern):
@@ -311,41 +311,41 @@ Example (two guesses):
         """,
     )
     parser.add_argument(
-        "--black",
+        '--black',
         type=str,
-        default="",
-        help="Letters that returned black tiles (space/comma-separated or as"
-        " one string)",
+        default='',
+        help='Letters that returned black tiles (space/comma-separated or as'
+        ' one string)',
     )
     parser.add_argument(
-        "--count",
-        action="store_true",
-        help="Show only the count of remaining words",
+        '--count',
+        action='store_true',
+        help='Show only the count of remaining words',
     )
     parser.add_argument(
-        "--prune",
-        action="store_true",
-        help="Use fzf to select non-solution words to remove from words.txt",
+        '--prune',
+        action='store_true',
+        help='Use fzf to select non-solution words to remove from words.txt',
     )
     parser.add_argument(
-        "patterns", nargs="+", help="Guess patterns (5 characters each)"
+        'patterns', nargs='+', help='Guess patterns (5 characters each)'
     )
 
     args = parser.parse_args()
 
     # Load words
-    words_file = Path(__file__).parent / "words.txt"
+    words_file = Path(__file__).parent / 'words.txt'
     if not words_file.exists():
-        print(f"Error: {words_file} not found", file=sys.stderr)
+        print(f'Error: {words_file} not found', file=sys.stderr)
         sys.exit(1)
 
-    with open(words_file, "r", encoding="utf-8") as f:
+    with open(words_file, 'r', encoding='utf-8') as f:
         words = [line.strip().lower() for line in f if line.strip()]
 
     try:
         constraints = parse_patterns(args.patterns, args.black)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)
 
     filtered = filter_words(words, constraints)
@@ -359,5 +359,5 @@ Example (two guesses):
             print(word)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
