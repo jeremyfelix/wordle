@@ -100,15 +100,43 @@ class TestParsePatterns(unittest.TestCase):
         self.assertIn('t', constraints['doubled'])
         self.assertEqual(constraints['doubled']['t'], 2)
 
-    def test_doubled_from_multiple_guesses_green_and_yellow(self):
-        """Test doubled inference when letter is green in one guess and yellow
-        in another."""
+    def test_not_doubled_from_multiple_guesses_green_and_yellow(self):
+        """Test no doubled inference when letter is green in one guess and
+        yellow in another."""
         # First guess: t at position 0 (green)
         # Second guess: t at position 1 (yellow)
-        # Green at position 0 AND yellow at position 1 -> implies 2 copies
+        # Green at position 0 AND yellow at position 1 -> does not imply 2
+        # copies
         constraints = parse_patterns(['T....', '....t'], '')
+        self.assertNotIn('t', constraints['doubled'])
+
+    def test_not_doubled_from_multiple_guesses_yellow(self):
+        """Test no doubled inference when letter is yellow in two guesses."""
+        # First guess: t at position 0 (yellow)
+        # Second guess: t at position 1 (yellow)
+        # Yellow at position 0 AND yellow at position 1 -> does not imply 2
+        # copies
+        constraints = parse_patterns(['t....', '....t'], '')
+        self.assertNotIn('t', constraints['doubled'])
+
+    def test_doubled_from_multiple_guesses_green(self):
+        """Test doubled inference when letter is green in two guesses at
+        different positions."""
+        # First guess: t at position 0 (green)
+        # Second guess: t at position 1 (green)
+        # Green at position 0 AND green at position 1 -> implies 2 copies
+        constraints = parse_patterns(['T....', '....T'], '')
         self.assertIn('t', constraints['doubled'])
         self.assertEqual(constraints['doubled']['t'], 2)
+
+    def test_not_doubled_from_multiple_guesses_green_same_position(self):
+        """Test no doubled inference when letter is green in two guesses at
+        the same position."""
+        # First guess: t at position 1 (green)
+        # Second guess: t at position 1 (green)
+        # Green at position 0 AND green at position 1 -> implies 2 copies
+        constraints = parse_patterns(['T....', 'Tr...'], '')
+        self.assertNotIn('t', constraints['doubled'])
 
     def test_letter_in_yellow_two_positions_single_guess(self):
         """Test when letter appears as yellow in two positions within same
@@ -308,7 +336,8 @@ class TestEdgeCases(unittest.TestCase):
         constraints = parse_patterns(['.t.t.'], '')
         filtered = filter_words(TEST_WORDS, constraints)
         for word in filtered:
-            self.assertIn('t', word)
+            # 't' must be in the word twice, but not at positions 1 or 3
+            self.assertGreaterEqual(word.count('t'), 2)
             self.assertNotEqual(word[1], 't')
             self.assertNotEqual(word[3], 't')
 

@@ -100,17 +100,13 @@ def parse_patterns(patterns: list[str], black_letters: str) -> dict:
     # multiple copies only when:
     #  - a single guess showed multiple colored copies of the letter (e.g. two
     #    't's in one guess), or
-    #  - the letter appears green in one position and yellow in another (across
-    #    guesses), which implies at least two copies.
+    #  - the letter appears green in multiple positions (across guesses).
     for letter in set(list(letter_data.keys()) + list(max_in_guess.keys())):
         max_single = max_in_guess.get(letter, 0)
         green_pos = letter_data[letter]['green_pos']
-        yellow_pos = letter_data[letter]['yellow_pos']
 
         min_required = max_single
         if len(green_pos) >= 2:
-            min_required = max(min_required, 2)
-        elif len(green_pos) >= 1 and len(yellow_pos) >= 1:
             min_required = max(min_required, 2)
 
         if min_required >= 2:
