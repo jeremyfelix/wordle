@@ -409,7 +409,7 @@ function addRow(initWord = '', initColors = null) {
 
 // ── Controls ──────────────────────────────────────────────────────────────────
 
-document.getElementById('btn-add').addEventListener('click', addRow);
+document.getElementById('btn-add').addEventListener('click', () => addRow());
 
 document.getElementById('btn-clear').addEventListener('click', () => {
   document.getElementById('guess-rows').innerHTML = '';
