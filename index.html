@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Wordle Solver</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wordle">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#121213">
+<style>
+:root {
+  --c-black: #3a3a3c;
+  --c-yellow: #b59f3b;
+  --c-green: #538d4e;
+  --c-bg: #121213;
+  --c-surface: #1a1a1b;
+  --c-border: #3a3a3c;
+  --c-text: #ffffff;
+  --c-muted: #818384;
+  --c-danger: #c0392b;
+  --c-danger-bg: #3d0a0a;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  min-height: 100dvh;
+}
+
+/* ── Header ─────────────────────────────── */
+header {
+  text-align: center;
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid #2a2a2b;
+}
+header h1 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+header p {
+  font-size: 0.78rem;
+  color: var(--c-muted);
+  margin-top: 0.2rem;
+}
+
+/* ── Main layout ─────────────────────────── */
+main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* ── Guess rows ──────────────────────────── */
+#guess-rows { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.guess-row { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.row-tiles {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tiles {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+/* Tiles */
+.tile {
+  flex: 1;
+  aspect-ratio: 1;
+  max-width: 64px;
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.07s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  line-height: 1;
+}
+.tile[data-letter] { cursor: pointer; }
+.tile[data-letter]:active { transform: scale(0.92); }
+
+.tile[data-color="black"][data-letter] { background: var(--c-black); border-color: var(--c-black); }
+.tile[data-color="yellow"]             { background: var(--c-yellow); border-color: var(--c-yellow); }
+.tile[data-color="green"]              { background: var(--c-green);  border-color: var(--c-green);  }
+
+/* Remove row button */
+.btn-del-row {
+  background: none;
+  border: none;
+  color: var(--c-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-del-row:hover { color: #fff; }
+
+/* Word text input */
+.word-input {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  padding: 0.45rem 0.75rem;
+  text-transform: uppercase;
+  width: calc(100% - 2.5rem);
+  -webkit-appearance: none;
+}
+.word-input::placeholder { color: #444; font-weight: 400; letter-spacing: 0.05em; }
+.word-input:focus { outline: 2px solid #565758; border-color: transparent; }
+
+/* ── Action buttons ──────────────────────── */
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+  transition: opacity 0.1s, transform 0.07s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.btn:active { opacity: 0.75; transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-primary  { background: var(--c-green);  color: #fff; flex: 2; }
+.btn-outline  { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-border); flex: 1; }
+.btn-danger   { background: var(--c-danger);  color: #fff; }
+.btn-sm { font-size: 0.78rem; padding: 0.45rem 0.7rem; }
+
+/* ── Word list bar ───────────────────────── */
+.list-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+#list-status {
+  font-size: 0.78rem;
+  color: var(--c-muted);
+}
+.list-bar-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+/* Make the file-input label look like a button */
+.btn-import-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex: 1;
+}
+
+/* ── Results ─────────────────────────────── */
+#results { margin-top: 1.5rem; }
+
+.results-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--c-bg);
+  padding: 0.6rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid #2a2a2b;
+  margin-bottom: 0.5rem;
+}
+
+#results-count {
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.results-controls {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+/* Hidden words bar */
+.hidden-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #222;
+}
+#hidden-count {
+  font-size: 0.78rem;
+  color: var(--c-muted);
+}
+
+/* Word grid */
+.word-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 0.5rem;
+}
+
+.word-chip {
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.2rem;
+  text-align: center;
+  text-transform: uppercase;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.word-chip:hover { border-color: #666; }
+.word-chip.selected {
+  background: var(--c-danger-bg);
+  border-color: var(--c-danger);
+  color: #ff8080;
+  text-decoration: line-through;
+}
+
+/* Status message */
+#status {
+  text-align: center;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--c-muted);
+  display: none;
+}
+
+/* Responsive tweaks for very small screens */
+@media (max-width: 360px) {
+  .tile { font-size: 1.1rem; }
+  .word-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Wordle Solver</h1>
+  <p>Tap tiles to cycle: ⬛ &rarr; 🟨 &rarr; 🟩 &rarr; ⬛</p>
+</header>
+
+<main>
+  <!-- Guess input area -->
+  <div id="guess-rows"></div>
+
+  <div class="actions">
+    <button class="btn btn-outline" id="btn-add">＋ Add Guess</button>
+    <button class="btn btn-primary" id="btn-filter">Filter Words</button>
+    <button class="btn btn-outline" id="btn-clear">Clear</button>
+  </div>
+
+  <!-- Word list status + import/save controls -->
+  <div class="list-bar">
+    <span id="list-status">Loading words…</span>
+    <div class="list-bar-actions">
+      <button class="btn btn-outline btn-sm" id="btn-reset-default" style="display:none">Reset list</button>
+      <label class="btn btn-outline btn-sm btn-import-label" for="import-file">Import</label>
+      <input type="file" id="import-file" accept=".txt" style="display:none">
+      <button class="btn btn-outline btn-sm" id="btn-save">Save</button>
+    </div>
+  </div>
+
+  <!-- Results area -->
+  <div id="results" style="display:none">
+    <div class="results-bar">
+      <span id="results-count"></span>
+      <div class="results-controls">
+        <button class="btn btn-outline btn-sm" id="btn-select-all">Select All</button>
+        <button class="btn btn-danger btn-sm" id="btn-remove" disabled>Remove (0)</button>
+      </div>
+    </div>
+    <div id="hidden-bar" class="hidden-bar" style="display:none">
+      <span id="hidden-count"></span>
+      <button class="btn btn-outline btn-sm" id="btn-reset-hidden">Reset hidden</button>
+    </div>
+    <div id="word-grid" class="word-grid"></div>
+    <div id="status"></div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+const COLORS      = ['black', 'yellow', 'green'];
+const STORAGE_KEY = 'wordle-guesses';
+const REMOVED_KEY = 'wordle-removed';
+const CUSTOM_KEY  = 'wordle-custom-words';
+
+// ── Word list state ───────────────────────────────────────────────────────────
+
+let WORDS        = [];
+let REMOVED      = new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) || '[]'));
+let USING_CUSTOM = false;
+
+async function initWords() {
+  const custom = localStorage.getItem(CUSTOM_KEY);
+  if (custom) {
+    try {
+      WORDS        = JSON.parse(custom);
+      USING_CUSTOM = true;
+      updateListStatus();
+      return;
+    } catch (_) {}
+  }
+  try {
+    const res  = await fetch('./words.txt');
+    const text = await res.text();
+    WORDS        = text.split('\n').map(w => w.trim().toLowerCase()).filter(Boolean);
+    USING_CUSTOM = false;
+  } catch (_) {
+    WORDS = [];
+  }
+  updateListStatus();
+}
+
+function activeCount() {
+  return WORDS.filter(w => !REMOVED.has(w)).length;
+}
+
+function updateListStatus() {
+  const el       = document.getElementById('list-status');
+  const resetBtn = document.getElementById('btn-reset-default');
+  if (USING_CUSTOM) {
+    el.textContent        = `Custom list · ${activeCount().toLocaleString()} words`;
+    resetBtn.style.display = '';
+  } else {
+    el.textContent        = `${activeCount().toLocaleString()} words`;
+    resetBtn.style.display = 'none';
+  }
+  updateHiddenBar();
+}
+
+function updateHiddenBar() {
+  const bar = document.getElementById('hidden-bar');
+  const n   = REMOVED.size;
+  if (n > 0) {
+    document.getElementById('hidden-count').textContent =
+      `${n.toLocaleString()} word${n !== 1 ? 's' : ''} hidden`;
+    bar.style.display = 'flex';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// ── Save / Import ─────────────────────────────────────────────────────────────
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  const active = WORDS.filter(w => !REMOVED.has(w));
+  const blob   = new Blob([active.join('\n') + '\n'], { type: 'text/plain' });
+  const url    = URL.createObjectURL(blob);
+  const a      = Object.assign(document.createElement('a'), { href: url, download: 'words.txt' });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('import-file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text  = await file.text();
+  const words = text.split('\n').map(w => w.trim().toLowerCase()).filter(Boolean);
+  if (!words.length) { alert('No words found in the selected file.'); return; }
+
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(words));
+  localStorage.removeItem(REMOVED_KEY);
+  WORDS        = words;
+  REMOVED      = new Set();
+  USING_CUSTOM = true;
+  updateListStatus();
+  document.getElementById('results').style.display = 'none';
+  e.target.value = '';
+});
+
+document.getElementById('btn-reset-default').addEventListener('click', () => {
+  if (!confirm('Reset to the default word list? This clears hidden words and the custom list.')) return;
+  localStorage.removeItem(CUSTOM_KEY);
+  localStorage.removeItem(REMOVED_KEY);
+  REMOVED      = new Set();
+  USING_CUSTOM = false;
+  document.getElementById('results').style.display = 'none';
+  initWords();
+});
+
+// ── Filter logic (ported from app.py) ────────────────────────────────────────
+
+function parseGuesses(guesses) {
+  const green = {}, yellow = {}, doubled = {};
+  const confirmed = new Set(), blacked = new Set();
+  const allData   = [];
+
+  for (const { letters, colors } of guesses) {
+    const ls = letters.map(l => l.toLowerCase());
+    if (ls.length !== 5 || !ls.every(Boolean)) continue;
+    const data = [];
+    ls.forEach((l, pos) => {
+      const c = colors[pos];
+      if (c === 'green') {
+        green[pos] = l; confirmed.add(l); data.push([l, 'green', pos]);
+      } else if (c === 'yellow') {
+        (yellow[l] ||= []).push(pos); confirmed.add(l); data.push([l, 'yellow', pos]);
+      } else {
+        blacked.add(l); data.push([l, 'black', pos]);
+      }
+    });
+    allData.push(data);
+  }
+
+  const black = new Set([...blacked].filter(l => !confirmed.has(l)));
+
+  const maxInGuess = {}, greenPos = {};
+  for (const data of allData) {
+    const counts = {};
+    for (const [l, state, pos] of data) {
+      if (state !== 'black') counts[l] = (counts[l] || 0) + 1;
+      if (state === 'green') (greenPos[l] ||= new Set()).add(pos);
+    }
+    for (const [l, n] of Object.entries(counts))
+      if (n > (maxInGuess[l] || 0)) maxInGuess[l] = n;
+  }
+  for (const [l, mx] of Object.entries(maxInGuess)) {
+    const minReq = Math.max(mx, (greenPos[l]?.size || 0) >= 2 ? 2 : 0);
+    if (minReq >= 2) doubled[l] = minReq;
+  }
+
+  return { green, yellow, black, doubled };
+}
+
+function filterWords(words, { green, yellow, black, doubled }) {
+  const pat = ['.', '.', '.', '.', '.'];
+  for (const [p, l] of Object.entries(green)) pat[p] = l;
+  const re = new RegExp('^' + pat.join('') + '$');
+  return words.filter(word => {
+    if (!re.test(word)) return false;
+    if ([...black].some(ch => word.includes(ch))) return false;
+    for (const [l, excl] of Object.entries(yellow))
+      if (!word.includes(l) || excl.some(p => word[p] === l)) return false;
+    for (const [l, mn] of Object.entries(doubled))
+      if ((word.match(new RegExp(l, 'g')) || []).length < mn) return false;
+    return true;
+  });
+}
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+
+function saveState() {
+  const state = [...document.querySelectorAll('.guess-row')].map(row => ({
+    word:   [...row.querySelectorAll('.tile')].map(t => t.dataset.letter).join(''),
+    colors: [...row.querySelectorAll('.tile')].map(t => t.dataset.color),
+  }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length) {
+      saved.forEach(({ word, colors }) => addRow(word, colors));
+      return;
+    }
+  } catch (_) {}
+  addRow();
+}
+
+// ── Row creation ──────────────────────────────────────────────────────────────
+
+function createRow(initWord = '', initColors = null) {
+  const row = document.createElement('div');
+  row.className = 'guess-row';
+
+  const rowTiles = document.createElement('div');
+  rowTiles.className = 'row-tiles';
+
+  const tilesDiv = document.createElement('div');
+  tilesDiv.className = 'tiles';
+
+  const tiles = Array.from({ length: 5 }, (_, i) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.color  = 'black';
+    tile.dataset.letter = '';
+    tile.setAttribute('role', 'button');
+    tile.setAttribute('aria-label', `Position ${i + 1}: empty`);
+    tile.addEventListener('click', () => onTileClick(tile));
+    return tile;
+  });
+
+  tiles.forEach(t => tilesDiv.appendChild(t));
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-del-row';
+  delBtn.textContent = '×';
+  delBtn.setAttribute('aria-label', 'Remove guess');
+  delBtn.addEventListener('click', () => { row.remove(); saveState(); });
+
+  rowTiles.appendChild(tilesDiv);
+  rowTiles.appendChild(delBtn);
+
+  const input = document.createElement('input');
+  input.type         = 'text';
+  input.className    = 'word-input';
+  input.maxLength    = 5;
+  input.placeholder  = 'Type guess word…';
+  input.autocomplete = 'off';
+  input.autocorrect  = 'off';
+  input.spellcheck   = false;
+
+  input.addEventListener('input', () => syncInputToTiles(input, tiles));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && input.value.length === 5) {
+      const rows   = document.querySelectorAll('.guess-row');
+      const isLast = row === rows[rows.length - 1];
+      if (isLast) {
+        addRow();
+      } else {
+        const next = row.nextElementSibling;
+        if (next) next.querySelector('.word-input')?.focus();
+      }
+    }
+  });
+
+  row.appendChild(rowTiles);
+  row.appendChild(input);
+
+  if (initWord) {
+    const word = initWord.toUpperCase();
+    input.value = word;
+    tiles.forEach((tile, i) => {
+      const letter = word[i] || '';
+      tile.dataset.letter = letter;
+      tile.textContent    = letter;
+      if (letter) tile.dataset.color = initColors?.[i] ?? 'black';
+    });
+  }
+
+  return { row, tiles, input };
+}
+
+function syncInputToTiles(input, tiles) {
+  const word = input.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5);
+  input.value = word;
+
+  tiles.forEach((tile, i) => {
+    const prev = tile.dataset.letter;
+    const next = word[i] || '';
+    tile.dataset.letter = next;
+    tile.textContent    = next;
+    tile.setAttribute('aria-label', next
+      ? `Position ${i + 1}: ${next}, ${tile.dataset.color}`
+      : `Position ${i + 1}: empty`);
+    if (next !== prev) tile.dataset.color = 'black';
+  });
+  saveState();
+}
+
+function onTileClick(tile) {
+  if (!tile.dataset.letter) return;
+  const idx = COLORS.indexOf(tile.dataset.color);
+  tile.dataset.color = COLORS[(idx + 1) % COLORS.length];
+  tile.setAttribute('aria-label',
+    `Position ${[...tile.parentElement.children].indexOf(tile) + 1}: ${tile.dataset.letter}, ${tile.dataset.color}`);
+  saveState();
+}
+
+function addRow(initWord = '', initColors = null) {
+  const { row, input } = createRow(initWord, initColors);
+  document.getElementById('guess-rows').appendChild(row);
+  if (!initWord) input.focus();
+  saveState();
+  return row;
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+
+document.getElementById('btn-add').addEventListener('click', () => addRow());
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  document.getElementById('guess-rows').innerHTML = '';
+  document.getElementById('results').style.display = 'none';
+  localStorage.removeItem(STORAGE_KEY);
+  addRow();
+});
+
+document.getElementById('btn-filter').addEventListener('click', doFilter);
+
+// ── Filter ────────────────────────────────────────────────────────────────────
+
+function doFilter() {
+  if (!WORDS.length) { alert('Word list not loaded yet.'); return; }
+
+  const guesses  = collectGuesses();
+  const hasInput = guesses.some(g => g.letters.some(Boolean));
+
+  let filtered;
+  if (!hasInput) {
+    filtered = [...WORDS].sort();
+  } else {
+    const constraints = parseGuesses(guesses);
+    filtered = filterWords(WORDS, constraints).sort();
+  }
+
+  showResults(filtered.filter(w => !REMOVED.has(w)));
+}
+
+function collectGuesses() {
+  return [...document.querySelectorAll('.guess-row')].flatMap(row => {
+    const tiles   = [...row.querySelectorAll('.tile')];
+    const letters = tiles.map(t => t.dataset.letter);
+    const colors  = tiles.map(t => t.dataset.color);
+    if (!letters.some(Boolean)) return [];
+    return [{ letters, colors }];
+  });
+}
+
+// ── Results ───────────────────────────────────────────────────────────────────
+
+function showResults(words) {
+  const resultsEl = document.getElementById('results');
+  const grid      = document.getElementById('word-grid');
+  const countEl   = document.getElementById('results-count');
+  const statusEl  = document.getElementById('status');
+
+  resultsEl.style.display = 'block';
+  const n = words.length;
+  countEl.textContent = `${n.toLocaleString()} word${n !== 1 ? 's' : ''} found`;
+  statusEl.style.display = 'none';
+
+  grid.innerHTML = '';
+  words.forEach(word => {
+    const chip = document.createElement('button');
+    chip.className  = 'word-chip';
+    chip.textContent = word;
+    chip.type       = 'button';
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+      updateRemoveBtn();
+    });
+    grid.appendChild(chip);
+  });
+
+  updateRemoveBtn();
+  updateHiddenBar();
+  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Select All ────────────────────────────────────────────────────────────────
+
+document.getElementById('btn-select-all').addEventListener('click', () => {
+  const chips      = [...document.querySelectorAll('.word-chip')];
+  const allSelected = chips.every(c => c.classList.contains('selected'));
+  chips.forEach(c => c.classList.toggle('selected', !allSelected));
+  document.getElementById('btn-select-all').textContent =
+    allSelected ? 'Select All' : 'Deselect All';
+  updateRemoveBtn();
+});
+
+function updateRemoveBtn() {
+  const n     = document.querySelectorAll('.word-chip.selected').length;
+  const btn   = document.getElementById('btn-remove');
+  btn.textContent = `Remove (${n})`;
+  btn.disabled    = n === 0;
+
+  const total = document.querySelectorAll('.word-chip').length;
+  document.getElementById('btn-select-all').textContent =
+    (n === total && total > 0) ? 'Deselect All' : 'Select All';
+}
+
+// ── Remove (localStorage) ─────────────────────────────────────────────────────
+
+document.getElementById('btn-remove').addEventListener('click', () => {
+  const selected = [...document.querySelectorAll('.word-chip.selected')];
+  if (!selected.length) return;
+  const words = selected.map(c => c.textContent.toLowerCase());
+  if (!confirm(`Hide ${words.length} word${words.length !== 1 ? 's' : ''}? They'll be excluded from future filter results.`)) return;
+
+  words.forEach(w => REMOVED.add(w));
+  localStorage.setItem(REMOVED_KEY, JSON.stringify([...REMOVED]));
+
+  selected.forEach(c => c.remove());
+  const remaining = document.querySelectorAll('.word-chip').length;
+  document.getElementById('results-count').textContent =
+    `${remaining.toLocaleString()} word${remaining !== 1 ? 's' : ''} found`;
+
+  updateRemoveBtn();
+  updateListStatus();
+});
+
+document.getElementById('btn-reset-hidden').addEventListener('click', () => {
+  REMOVED = new Set();
+  localStorage.removeItem(REMOVED_KEY);
+  updateListStatus();
+  if (document.getElementById('results').style.display !== 'none') doFilter();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+loadState();
+initWords();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+}
+</script>
+</body>
+</html>
