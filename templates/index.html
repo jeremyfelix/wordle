@@ -271,10 +271,32 @@ main {
 'use strict';
 
 const COLORS = ['black', 'yellow', 'green'];
+const STORAGE_KEY = 'wordle-guesses';
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+
+function saveState() {
+  const state = [...document.querySelectorAll('.guess-row')].map(row => ({
+    word:   [...row.querySelectorAll('.tile')].map(t => t.dataset.letter).join(''),
+    colors: [...row.querySelectorAll('.tile')].map(t => t.dataset.color),
+  }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length) {
+      saved.forEach(({ word, colors }) => addRow(word, colors));
+      return;
+    }
+  } catch (_) {}
+  addRow();
+}
 
 // ── Row creation ──────────────────────────────────────────────────────────────
 
-function createRow() {
+function createRow(initWord = '', initColors = null) {
   const row = document.createElement('div');
   row.className = 'guess-row';
 
@@ -302,7 +324,7 @@ function createRow() {
   delBtn.className = 'btn-del-row';
   delBtn.textContent = '×';
   delBtn.setAttribute('aria-label', 'Remove guess');
-  delBtn.addEventListener('click', () => row.remove());
+  delBtn.addEventListener('click', () => { row.remove(); saveState(); });
 
   rowTiles.appendChild(tilesDiv);
   rowTiles.appendChild(delBtn);
@@ -335,6 +357,17 @@ function createRow() {
   row.appendChild(rowTiles);
   row.appendChild(input);
 
+  if (initWord) {
+    const word = initWord.toUpperCase();
+    input.value = word;
+    tiles.forEach((tile, i) => {
+      const letter = word[i] || '';
+      tile.dataset.letter = letter;
+      tile.textContent = letter;
+      if (letter) tile.dataset.color = initColors?.[i] ?? 'black';
+    });
+  }
+
   return { row, tiles, input };
 }
 
@@ -354,6 +387,7 @@ function syncInputToTiles(input, tiles) {
       tile.dataset.color = 'black'; // reset color on letter change
     }
   });
+  saveState();
 }
 
 function onTileClick(tile) {
@@ -362,12 +396,14 @@ function onTileClick(tile) {
   tile.dataset.color = COLORS[(idx + 1) % COLORS.length];
   tile.setAttribute('aria-label',
     `Position ${[...tile.parentElement.children].indexOf(tile) + 1}: ${tile.dataset.letter}, ${tile.dataset.color}`);
+  saveState();
 }
 
-function addRow() {
-  const { row, input } = createRow();
+function addRow(initWord = '', initColors = null) {
+  const { row, input } = createRow(initWord, initColors);
   document.getElementById('guess-rows').appendChild(row);
-  input.focus();
+  if (!initWord) input.focus();
+  saveState();
   return row;
 }
 
@@ -378,6 +414,7 @@ document.getElementById('btn-add').addEventListener('click', addRow);
 document.getElementById('btn-clear').addEventListener('click', () => {
   document.getElementById('guess-rows').innerHTML = '';
   document.getElementById('results').style.display = 'none';
+  localStorage.removeItem(STORAGE_KEY);
   addRow();
 });
 
@@ -509,7 +546,7 @@ document.getElementById('btn-remove').addEventListener('click', async () => {
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-addRow();
+loadState();
 </script>
 </body>
 </html>
