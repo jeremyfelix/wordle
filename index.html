@@ -437,7 +437,7 @@ document.getElementById('btn-reset-default').addEventListener('click', () => {
 // ── Filter logic (ported from app.py) ────────────────────────────────────────
 
 function parseGuesses(guesses) {
-  const green = {}, yellow = {}, doubled = {};
+  const green = {}, yellow = {}, doubled = {}, maxCount = {};
   const confirmed = new Set(), blacked = new Set();
   const allData   = [];
 
@@ -460,6 +460,23 @@ function parseGuesses(guesses) {
 
   const black = new Set([...blacked].filter(l => !confirmed.has(l)));
 
+  // When a letter appears as both confirmed (green/yellow) and black in the same
+  // guess, the black occurrence tells us the word has no more than the confirmed
+  // count of that letter. We also derive a position exclusion for each black hit.
+  for (const data of allData) {
+    const byLetter = {};
+    for (const [l, state, pos] of data) (byLetter[l] ||= []).push([state, pos]);
+    for (const [l, occ] of Object.entries(byLetter)) {
+      const confirmedHere = occ.filter(([s]) => s !== 'black');
+      const blackHere     = occ.filter(([s]) => s === 'black');
+      if (confirmedHere.length > 0 && blackHere.length > 0) {
+        for (const [, pos] of blackHere) (yellow[l] ||= []).push(pos);
+        const mx = confirmedHere.length;
+        if (maxCount[l] === undefined || mx < maxCount[l]) maxCount[l] = mx;
+      }
+    }
+  }
+
   const maxInGuess = {}, greenPos = {};
   for (const data of allData) {
     const counts = {};
@@ -475,10 +492,10 @@ function parseGuesses(guesses) {
     if (minReq >= 2) doubled[l] = minReq;
   }
 
-  return { green, yellow, black, doubled };
+  return { green, yellow, black, doubled, maxCount };
 }
 
-function filterWords(words, { green, yellow, black, doubled }) {
+function filterWords(words, { green, yellow, black, doubled, maxCount }) {
   const pat = ['.', '.', '.', '.', '.'];
   for (const [p, l] of Object.entries(green)) pat[p] = l;
   const re = new RegExp('^' + pat.join('') + '$');
@@ -489,6 +506,8 @@ function filterWords(words, { green, yellow, black, doubled }) {
       if (!word.includes(l) || excl.some(p => word[p] === l)) return false;
     for (const [l, mn] of Object.entries(doubled))
       if ((word.match(new RegExp(l, 'g')) || []).length < mn) return false;
+    for (const [l, mx] of Object.entries(maxCount))
+      if ((word.match(new RegExp(l, 'g')) || []).length > mx) return false;
     return true;
   });
 }

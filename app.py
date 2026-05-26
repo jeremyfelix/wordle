@@ -24,6 +24,7 @@ def parse_guesses(guesses):
     green            = {}
     yellow           = defaultdict(list)
     black            = set()
+    max_count        = {}
     letter_confirmed = set()
     letter_blacked   = set()
     all_guess_data   = []
@@ -52,8 +53,25 @@ def parse_guesses(guesses):
     for letter in letter_blacked - letter_confirmed:
         black.add(letter)
 
-    doubled       = {}
-    max_in_guess  = defaultdict(int)
+    # When a letter appears as both confirmed (green/yellow) and black in the same
+    # guess, the black occurrence tells us the word has no more than the confirmed
+    # count of that letter. We also derive a position exclusion for each black hit.
+    for guess_data in all_guess_data:
+        by_letter = defaultdict(list)
+        for letter, state, pos in guess_data:
+            by_letter[letter].append((state, pos))
+        for letter, occ in by_letter.items():
+            confirmed_here = [(s, p) for s, p in occ if s != 'black']
+            black_here     = [(s, p) for s, p in occ if s == 'black']
+            if confirmed_here and black_here:
+                for _, pos in black_here:
+                    yellow[letter].append(pos)
+                mx = len(confirmed_here)
+                if letter not in max_count or mx < max_count[letter]:
+                    max_count[letter] = mx
+
+    doubled         = {}
+    max_in_guess    = defaultdict(int)
     green_positions = defaultdict(set)
 
     for guess in all_guess_data:
@@ -74,7 +92,8 @@ def parse_guesses(guesses):
         if min_req >= 2:
             doubled[letter] = min_req
 
-    return {'green': green, 'yellow': dict(yellow), 'black': black, 'doubled': doubled}
+    return {'green': green, 'yellow': dict(yellow), 'black': black,
+            'doubled': doubled, 'max_count': max_count}
 
 
 def filter_words(words, c):
@@ -98,6 +117,12 @@ def filter_words(words, c):
             continue
         for letter, mn in c['doubled'].items():
             if word.count(letter) < mn:
+                ok = False
+                break
+        if not ok:
+            continue
+        for letter, mx in c.get('max_count', {}).items():
+            if word.count(letter) > mx:
                 ok = False
                 break
         if ok:
