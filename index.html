@@ -277,6 +277,117 @@ main {
   display: none;
 }
 
+/* ── Bot suggestion card ─────────────────── */
+.bot-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bot-label {
+  font-size: 0.78rem;
+  color: var(--c-muted);
+  flex-shrink: 0;
+}
+.bot-word-display {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-green);
+}
+.bot-meta {
+  font-size: 0.72rem;
+  color: var(--c-muted);
+  flex: 1;
+}
+.bot-input {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.38rem 0.55rem;
+  text-transform: uppercase;
+  width: 5.5rem;
+  -webkit-appearance: none;
+}
+.bot-note-input {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  font-size: 0.82rem;
+  padding: 0.38rem 0.55rem;
+  flex: 1;
+  min-width: 0;
+  -webkit-appearance: none;
+}
+.bot-input:focus,
+.bot-note-input:focus { outline: 2px solid #565758; border-color: transparent; }
+
+/* ── Suggestions list section ────────────── */
+#suggestions-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid #2a2a2b;
+  padding-top: 0.6rem;
+}
+#suggestions-section > summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--c-muted);
+  padding: 0.3rem 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+#suggestions-section > summary::before { content: '▶'; font-size: 0.6rem; }
+#suggestions-section[open] > summary::before { content: '▼'; }
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #222;
+}
+.suggestion-item-word {
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-green);
+  min-width: 4rem;
+  font-size: 0.9rem;
+}
+.suggestion-item-meta {
+  font-size: 0.72rem;
+  color: var(--c-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggestions-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+
 /* Responsive tweaks for very small screens */
 @media (max-width: 360px) {
   .tile { font-size: 1.1rem; }
@@ -325,24 +436,64 @@ main {
       <span id="hidden-count"></span>
       <button class="btn btn-outline btn-sm" id="btn-reset-hidden">Reset hidden</button>
     </div>
+
+    <!-- Bot suggestion card -->
+    <div id="bot-card" class="bot-card" style="display:none">
+      <!-- has a suggestion -->
+      <div id="bot-view" class="bot-row" style="display:none">
+        <span class="bot-label">Bot suggests</span>
+        <span id="bot-word-display" class="bot-word-display"></span>
+        <span id="bot-meta-display" class="bot-meta"></span>
+        <button class="btn btn-outline btn-sm" id="btn-bot-edit">Edit</button>
+        <button class="btn btn-outline btn-sm" id="btn-bot-delete">Delete</button>
+      </div>
+      <!-- no suggestion yet -->
+      <div id="bot-empty" class="bot-row" style="display:none">
+        <span class="bot-label">No bot suggestion recorded</span>
+        <button class="btn btn-outline btn-sm" id="btn-bot-add">+ Record</button>
+      </div>
+      <!-- edit / add form -->
+      <div id="bot-form" class="bot-row" style="display:none">
+        <input id="bot-word-input" class="bot-input" maxlength="5" placeholder="WORD"
+               autocomplete="off" autocorrect="off" spellcheck="false">
+        <input id="bot-note-input" class="bot-note-input" placeholder="Note (optional)"
+               autocomplete="off">
+        <button class="btn btn-primary btn-sm" id="btn-bot-save">Save</button>
+        <button class="btn btn-outline btn-sm" id="btn-bot-cancel">Cancel</button>
+      </div>
+    </div>
+
     <div id="word-grid" class="word-grid"></div>
     <div id="status"></div>
   </div>
+
+  <!-- Saved suggestions list -->
+  <details id="suggestions-section">
+    <summary>Saved suggestions (<span id="suggestions-count">0</span>)</summary>
+    <div id="suggestions-list"></div>
+    <div class="suggestions-footer">
+      <button class="btn btn-outline btn-sm" id="btn-export-suggestions">Export suggestions.json</button>
+    </div>
+  </details>
 </main>
 
 <script>
 'use strict';
 
-const COLORS      = ['black', 'yellow', 'green'];
-const STORAGE_KEY = 'wordle-guesses';
-const REMOVED_KEY = 'wordle-removed';
-const CUSTOM_KEY  = 'wordle-custom-words';
+const COLORS          = ['black', 'yellow', 'green'];
+const STORAGE_KEY     = 'wordle-guesses';
+const REMOVED_KEY     = 'wordle-removed';
+const CUSTOM_KEY      = 'wordle-custom-words';
+const SUGGESTIONS_KEY = 'wordle-suggestions';
 
 // ── Word list state ───────────────────────────────────────────────────────────
 
-let WORDS        = [];
-let REMOVED      = new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) || '[]'));
-let USING_CUSTOM = false;
+let WORDS            = [];
+let REMOVED          = new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) || '[]'));
+let USING_CUSTOM     = false;
+let SUGGESTIONS      = {};
+let LAST_CONSTRAINTS = null;
+let LAST_REMAINING   = 0;
 
 async function initWords() {
   const custom = localStorage.getItem(CUSTOM_KEY);
@@ -432,6 +583,178 @@ document.getElementById('btn-reset-default').addEventListener('click', () => {
   USING_CUSTOM = false;
   document.getElementById('results').style.display = 'none';
   initWords();
+});
+
+// ── Bot suggestions ───────────────────────────────────────────────────────────
+
+async function initSuggestions() {
+  try {
+    const local = JSON.parse(localStorage.getItem(SUGGESTIONS_KEY) || '{}');
+    SUGGESTIONS = local;
+  } catch (_) {}
+  try {
+    const res = await fetch('./suggestions.json');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.suggestions) {
+        // Remote is the committed base; local edits (newer) take precedence per key
+        SUGGESTIONS = { ...data.suggestions, ...SUGGESTIONS };
+        localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(SUGGESTIONS));
+      }
+    }
+  } catch (_) {}
+  renderSuggestionsList();
+}
+
+function scenarioKey(c) {
+  return JSON.stringify({
+    g: Object.entries(c.green).map(([k, v]) => [+k, v]).sort((a, b) => a[0] - b[0]),
+    y: Object.entries(c.yellow).map(([l, ps]) => [l, [...ps].sort((a, b) => a - b)]).sort(),
+    b: [...c.black].sort(),
+    m: Object.entries(c.maxCount || {}).sort(),
+  });
+}
+
+function saveSuggestion(word, note) {
+  if (!LAST_CONSTRAINTS) return;
+  const key = scenarioKey(LAST_CONSTRAINTS);
+  SUGGESTIONS[key] = {
+    word: word.toLowerCase(),
+    note: note.trim(),
+    remaining: LAST_REMAINING,
+    saved: new Date().toISOString().slice(0, 10),
+  };
+  localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(SUGGESTIONS));
+  renderBotCard();
+  renderSuggestionsList();
+}
+
+function deleteSuggestion(key) {
+  delete SUGGESTIONS[key];
+  localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(SUGGESTIONS));
+  renderSuggestionsList();
+  if (LAST_CONSTRAINTS && scenarioKey(LAST_CONSTRAINTS) === key) renderBotCard();
+}
+
+function showBotCard() {
+  const card = document.getElementById('bot-card');
+  if (!LAST_CONSTRAINTS) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  renderBotCard();
+}
+
+function renderBotCard() {
+  const key  = LAST_CONSTRAINTS ? scenarioKey(LAST_CONSTRAINTS) : null;
+  const sugg = key ? SUGGESTIONS[key] : null;
+
+  const view  = document.getElementById('bot-view');
+  const empty = document.getElementById('bot-empty');
+  const form  = document.getElementById('bot-form');
+
+  if (sugg) {
+    document.getElementById('bot-word-display').textContent = sugg.word.toUpperCase();
+    document.getElementById('bot-meta-display').textContent =
+      [sugg.note, `${LAST_REMAINING} remaining`, sugg.saved].filter(Boolean).join(' · ');
+    view.style.display  = 'flex';
+    empty.style.display = 'none';
+    form.style.display  = 'none';
+  } else {
+    view.style.display  = 'none';
+    empty.style.display = 'flex';
+    form.style.display  = 'none';
+  }
+}
+
+function openBotForm(prefill) {
+  const sugg = prefill || {};
+  document.getElementById('bot-word-input').value = (sugg.word || '').toUpperCase();
+  document.getElementById('bot-note-input').value = sugg.note || '';
+  document.getElementById('bot-view').style.display  = 'none';
+  document.getElementById('bot-empty').style.display = 'none';
+  document.getElementById('bot-form').style.display  = 'flex';
+  document.getElementById('bot-word-input').focus();
+}
+
+function renderSuggestionsList() {
+  const list    = document.getElementById('suggestions-list');
+  const countEl = document.getElementById('suggestions-count');
+  const entries = Object.entries(SUGGESTIONS);
+  countEl.textContent = entries.length;
+  list.innerHTML = '';
+
+  if (!entries.length) {
+    const p = document.createElement('p');
+    p.className = 'bot-label';
+    p.style.padding = '0.5rem 0';
+    p.textContent = 'No suggestions saved yet.';
+    list.appendChild(p);
+    return;
+  }
+
+  for (const [key, sugg] of entries) {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+
+    const word = document.createElement('span');
+    word.className   = 'suggestion-item-word';
+    word.textContent = sugg.word.toUpperCase();
+
+    const meta = document.createElement('span');
+    meta.className   = 'suggestion-item-meta';
+    meta.textContent = [
+      sugg.note,
+      sugg.remaining ? `${sugg.remaining} words` : '',
+      sugg.saved,
+    ].filter(Boolean).join(' · ');
+
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'btn btn-outline btn-sm';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => deleteSuggestion(key));
+
+    item.appendChild(word);
+    item.appendChild(meta);
+    item.appendChild(delBtn);
+    list.appendChild(item);
+  }
+}
+
+document.getElementById('btn-bot-add').addEventListener('click', () => openBotForm(null));
+
+document.getElementById('btn-bot-edit').addEventListener('click', () => {
+  const key = LAST_CONSTRAINTS ? scenarioKey(LAST_CONSTRAINTS) : null;
+  openBotForm(key ? SUGGESTIONS[key] : null);
+});
+
+document.getElementById('btn-bot-delete').addEventListener('click', () => {
+  const key = LAST_CONSTRAINTS ? scenarioKey(LAST_CONSTRAINTS) : null;
+  if (key && confirm('Delete this suggestion?')) deleteSuggestion(key);
+});
+
+document.getElementById('btn-bot-cancel').addEventListener('click', renderBotCard);
+
+document.getElementById('btn-bot-save').addEventListener('click', () => {
+  const word = document.getElementById('bot-word-input').value.trim();
+  if (!word || word.length !== 5) {
+    document.getElementById('bot-word-input').focus();
+    return;
+  }
+  saveSuggestion(word, document.getElementById('bot-note-input').value);
+});
+
+document.getElementById('bot-word-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-bot-save').click();
+});
+
+document.getElementById('btn-export-suggestions').addEventListener('click', () => {
+  const data = { version: 1, suggestions: SUGGESTIONS };
+  const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: 'suggestions.json' });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 });
 
 // ── Filter logic (ported from app.py) ────────────────────────────────────────
@@ -662,15 +985,19 @@ function doFilter() {
   const guesses  = collectGuesses();
   const hasInput = guesses.some(g => g.letters.some(Boolean));
 
-  let filtered;
+  let filtered, constraints = null;
   if (!hasInput) {
     filtered = [...WORDS].sort();
   } else {
-    const constraints = parseGuesses(guesses);
+    constraints = parseGuesses(guesses);
     filtered = filterWords(WORDS, constraints).sort();
   }
 
-  showResults(filtered.filter(w => !REMOVED.has(w)));
+  const visible      = filtered.filter(w => !REMOVED.has(w));
+  LAST_CONSTRAINTS   = constraints;
+  LAST_REMAINING     = visible.length;
+  showResults(visible);
+  showBotCard();
 }
 
 function collectGuesses() {
@@ -767,6 +1094,7 @@ document.getElementById('btn-reset-hidden').addEventListener('click', () => {
 
 loadState();
 initWords();
+initSuggestions();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));

@@ -1,11 +1,12 @@
 'use strict';
 
-const CACHE = 'wordle-v1';
+const CACHE = 'wordle-v2';
 const SHELL = [
   './',
   './index.html',
   './words.txt',
   './manifest.json',
+  './suggestions.json',
   './icon-192.png',
   './icon-512.png',
 ];
