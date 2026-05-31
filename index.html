@@ -472,8 +472,9 @@ main {
     <summary>Saved suggestions (<span id="suggestions-count">0</span>)</summary>
     <div id="suggestions-list"></div>
     <div class="suggestions-footer">
-      <button class="btn btn-outline btn-sm" id="btn-import-suggestions">Import suggestions.json</button>
-      <button class="btn btn-outline btn-sm" id="btn-export-suggestions">Export suggestions.json</button>
+      <button class="btn btn-outline btn-sm" id="btn-import-suggestions">Import</button>
+      <button class="btn btn-outline btn-sm" id="btn-export-suggestions">Export</button>
+      <button class="btn btn-outline btn-sm" id="btn-reset-suggestions">Reset to defaults</button>
       <input type="file" id="suggestions-file-input" accept=".json,application/json" style="display:none">
     </div>
   </details>
@@ -782,6 +783,22 @@ document.getElementById('btn-export-suggestions').addEventListener('click', () =
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-reset-suggestions').addEventListener('click', async () => {
+  if (!confirm('Reset suggestions to the committed defaults? Local edits will be lost.')) return;
+  localStorage.removeItem(SUGGESTIONS_KEY);
+  SUGGESTIONS = {};
+  try {
+    const res = await fetch('./suggestions.json?nocache=' + Date.now());
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.suggestions) SUGGESTIONS = data.suggestions;
+    }
+  } catch (_) {}
+  localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(SUGGESTIONS));
+  renderSuggestionsList();
+  if (LAST_CONSTRAINTS) renderBotCard();
 });
 
 // ── Filter logic (ported from app.py) ────────────────────────────────────────
