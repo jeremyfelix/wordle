@@ -472,7 +472,9 @@ main {
     <summary>Saved suggestions (<span id="suggestions-count">0</span>)</summary>
     <div id="suggestions-list"></div>
     <div class="suggestions-footer">
+      <button class="btn btn-outline btn-sm" id="btn-import-suggestions">Import suggestions.json</button>
       <button class="btn btn-outline btn-sm" id="btn-export-suggestions">Export suggestions.json</button>
+      <input type="file" id="suggestions-file-input" accept=".json,application/json" style="display:none">
     </div>
   </details>
 </main>
@@ -743,6 +745,32 @@ document.getElementById('btn-bot-save').addEventListener('click', () => {
 
 document.getElementById('bot-word-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-bot-save').click();
+});
+
+document.getElementById('btn-import-suggestions').addEventListener('click', () => {
+  document.getElementById('suggestions-file-input').click();
+});
+
+document.getElementById('suggestions-file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data || typeof data.suggestions !== 'object') throw new Error('bad format');
+      // Imported file wins over current local state (it's the authoritative export)
+      SUGGESTIONS = { ...SUGGESTIONS, ...data.suggestions };
+      localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(SUGGESTIONS));
+      renderSuggestionsList();
+      if (LAST_CONSTRAINTS) renderBotCard();
+      alert(`Imported ${Object.keys(data.suggestions).length} suggestion(s).`);
+    } catch (_) {
+      alert('Could not read suggestions.json — make sure it\'s a valid exported file.');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
 });
 
 document.getElementById('btn-export-suggestions').addEventListener('click', () => {
