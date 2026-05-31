@@ -653,8 +653,7 @@ function renderBotCard() {
 
   if (sugg) {
     document.getElementById('bot-word-display').textContent = sugg.word.toUpperCase();
-    document.getElementById('bot-meta-display').textContent =
-      [sugg.note, `${LAST_REMAINING} remaining`, sugg.saved].filter(Boolean).join(' · ');
+    document.getElementById('bot-meta-display').textContent = sugg.note || '';
     view.style.display  = 'flex';
     empty.style.display = 'none';
     form.style.display  = 'none';
