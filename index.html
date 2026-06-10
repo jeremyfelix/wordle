@@ -305,7 +305,11 @@ main {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--c-green);
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
+.bot-word-display:hover { opacity: 0.75; }
 .bot-meta {
   font-size: 0.72rem;
   color: var(--c-muted);
@@ -720,6 +724,28 @@ function renderSuggestionsList() {
     list.appendChild(item);
   }
 }
+
+document.getElementById('bot-word-display').addEventListener('click', () => {
+  const key  = LAST_CONSTRAINTS ? scenarioKey(LAST_CONSTRAINTS) : null;
+  const sugg = key ? SUGGESTIONS[key] : null;
+  if (!sugg) return;
+  const word = sugg.word.toUpperCase();
+
+  // Use the first empty row, or add a new one
+  const emptyInput = [...document.querySelectorAll('.guess-row input')]
+    .find(inp => !inp.value.trim());
+
+  if (emptyInput) {
+    emptyInput.value = word;
+    emptyInput.dispatchEvent(new Event('input'));
+    emptyInput.closest('.guess-row').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    emptyInput.focus();
+  } else {
+    addRow(word);
+    document.querySelector('.guess-row:last-child')
+      .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+});
 
 document.getElementById('btn-bot-add').addEventListener('click', () => openBotForm(null));
 
