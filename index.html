@@ -310,6 +310,11 @@ main {
   text-underline-offset: 3px;
 }
 .bot-word-display:hover { opacity: 0.75; }
+.bot-word-display.used {
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.4;
+}
 .bot-meta {
   font-size: 0.72rem;
   color: var(--c-muted);
@@ -659,7 +664,11 @@ function renderBotCard() {
   const form  = document.getElementById('bot-form');
 
   if (sugg) {
-    document.getElementById('bot-word-display').textContent = sugg.word.toUpperCase();
+    const wordEl = document.getElementById('bot-word-display');
+    wordEl.textContent = sugg.word.toUpperCase();
+    const alreadyUsed = [...document.querySelectorAll('.guess-row input')]
+      .some(inp => inp.value.trim().toLowerCase() === sugg.word.toLowerCase());
+    wordEl.classList.toggle('used', alreadyUsed);
     document.getElementById('bot-meta-display').textContent = sugg.note || '';
     view.style.display  = 'flex';
     empty.style.display = 'none';
@@ -726,6 +735,9 @@ function renderSuggestionsList() {
 }
 
 document.getElementById('bot-word-display').addEventListener('click', () => {
+  const wordEl = document.getElementById('bot-word-display');
+  if (wordEl.classList.contains('used')) return;
+
   const key  = LAST_CONSTRAINTS ? scenarioKey(LAST_CONSTRAINTS) : null;
   const sugg = key ? SUGGESTIONS[key] : null;
   if (!sugg) return;
@@ -745,6 +757,8 @@ document.getElementById('bot-word-display').addEventListener('click', () => {
     document.querySelector('.guess-row:last-child')
       .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
+
+  wordEl.classList.add('used');
 });
 
 document.getElementById('btn-bot-add').addEventListener('click', () => openBotForm(null));
