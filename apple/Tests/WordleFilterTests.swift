@@ -281,7 +281,7 @@ final class WordleFilterTests: XCTestCase {
         let c = constraints([("xxttx", [.black, .black, .green, .yellow, .black])])
         let filtered = WordleFilter.filter(words: testWords, constraints: c)
         for word in filtered {
-            XCTAssertGreaterEqual(word.filter { $0 == "t" }.count, 2)
+            XCTAssertGreaterThanOrEqual(word.filter { $0 == "t" }.count, 2)
         }
         XCTAssertTrue(filtered.contains("attic"))
         XCTAssertFalse(filtered.contains("batch"))
@@ -372,7 +372,7 @@ final class WordleFilterTests: XCTestCase {
         // 't' is yellow twice within the second guess ("trout" has 't' at
         // position 0 AND position 4) -> doubled, >= 2.
         XCTAssertNotNil(c.doubled["t"])
-        XCTAssertGreaterEqual(c.doubled["t"] ?? 0, 2)
+        XCTAssertGreaterThanOrEqual(c.doubled["t"] ?? 0, 2)
 
         let filtered = WordleFilter.filter(words: testWords, constraints: c)
         XCTAssertTrue(filtered.contains("attic"))
@@ -404,7 +404,7 @@ final class WordleFilterTests: XCTestCase {
         let c = constraints([("txtxt", [.green, .black, .green, .black, .green])])
         let filtered = WordleFilter.filter(words: testWords, constraints: c)
         for word in filtered {
-            XCTAssertGreaterEqual(word.filter { $0 == "t" }.count, 3)
+            XCTAssertGreaterThanOrEqual(word.filter { $0 == "t" }.count, 3)
         }
     }
 
@@ -414,7 +414,7 @@ final class WordleFilterTests: XCTestCase {
         let filtered = WordleFilter.filter(words: testWords, constraints: c)
         for word in filtered {
             let chars = Array(word)
-            XCTAssertGreaterEqual(word.filter { $0 == "t" }.count, 2)
+            XCTAssertGreaterThanOrEqual(word.filter { $0 == "t" }.count, 2)
             XCTAssertNotEqual(chars[1], "t")
             XCTAssertNotEqual(chars[3], "t")
         }
@@ -468,18 +468,23 @@ final class WordleFilterTests: XCTestCase {
         XCTAssertEqual(bundled[key]?.word, "hydro")
     }
 
-    /// Loads `suggestions.json` straight from the test bundle (which is a
-    /// SEPARATE bundle from the app's `Bundle.main` — Xcode test targets
-    /// get their own `.xctest` bundle). For this lookup to succeed, the
-    /// resource must ALSO be added to the test target's bundle resources,
-    /// not just the app target's. If it isn't, this helper returns an
-    /// empty dictionary and only the literal-string assertions above still
-    /// run (which is the main point of these tests anyway).
+    /// Loads the committed `suggestions.json` directly from the source tree,
+    /// relative to this test file's own location (`#filePath`):
+    /// `<repo>/apple/Tests/WordleFilterTests.swift` ->
+    /// `<repo>/apple/Sources/Resources/suggestions.json`.
+    ///
+    /// Reading the source file directly (rather than from a bundle) means
+    /// this works identically under `swift test` on Linux/CI and under
+    /// Xcode on macOS, with no resource-bundling setup required in either.
+    /// If the file can't be read it returns an empty dictionary, so the
+    /// literal-string parity assertions above still run regardless.
     private func loadBundledSuggestionsForTest() -> [String: Suggestion] {
-        guard let url = Bundle(for: WordleFilterTests.self)
-            .url(forResource: "suggestions", withExtension: "json"),
-            let data = try? Data(contentsOf: url),
-            let file = try? JSONDecoder().decode(SuggestionsFile.self, from: data)
+        let resource = URL(fileURLWithPath: #filePath)  // .../apple/Tests/WordleFilterTests.swift
+            .deletingLastPathComponent()                // .../apple/Tests
+            .deletingLastPathComponent()                // .../apple
+            .appendingPathComponent("Sources/Resources/suggestions.json")
+        guard let data = try? Data(contentsOf: resource),
+              let file = try? JSONDecoder().decode(SuggestionsFile.self, from: data)
         else {
             return [:]
         }

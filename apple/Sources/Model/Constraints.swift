@@ -40,11 +40,15 @@ enum TileColor: String, Codable, CaseIterable {
 ///
 /// Modeling note: `letters` is `[Character?]` (5 slots, any of which may be
 /// empty/nil) rather than a `String`, because a guess row can be partially
-/// filled in the UI (e.g. only 3 of 5 tiles typed so far). `Character`
-/// conforms to `Codable` in the Swift standard library (it encodes as a
-/// single-character `String`), and `Optional` of a `Codable` type is itself
-/// `Codable`, so `[Character?]` synthesizes `Codable` conformance for free —
-/// no custom `encode(to:)`/`init(from:)` needed.
+/// filled in the UI (e.g. only 3 of 5 tiles typed so far).
+///
+/// Codable note: `Character` does NOT conform to `Codable` in the Swift
+/// standard library, so `[Character?]` cannot synthesize `Codable`
+/// automatically. We therefore implement `Codable` by hand, encoding each
+/// letter as an optional single-character `String` (`[String?]`) and
+/// converting back to `Character` on decode. This keeps the rest of the app's
+/// `[Character?]` API unchanged while still persisting cleanly to JSON /
+/// UserDefaults.
 struct Guess: Identifiable, Codable, Equatable {
     let id: UUID
 
@@ -59,6 +63,29 @@ struct Guess: Identifiable, Codable, Equatable {
         self.id = id
         self.letters = letters
         self.colors = colors
+    }
+
+    // MARK: - Codable (manual, because Character isn't Codable)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, letters, colors
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        colors = try container.decode([TileColor].self, forKey: .colors)
+        // Each letter persists as an optional single-character String.
+        let stringLetters = try container.decode([String?].self, forKey: .letters)
+        letters = stringLetters.map { $0?.first }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(colors, forKey: .colors)
+        let stringLetters: [String?] = letters.map { $0.map(String.init) }
+        try container.encode(stringLetters, forKey: .letters)
     }
 
     /// Convenience accessor: the letter at `position` (0...4), or nil.

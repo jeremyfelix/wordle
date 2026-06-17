@@ -96,10 +96,23 @@ You'll need a Mac with Xcode installed (free from the Mac App Store).
   assert byte-identical output against literal keys taken straight from
   the committed `suggestions.json` — these are the most important tests in
   the suite, since they're what guarantees bot suggestions (including ones
-  exported from the web PWA) actually match up in this app. Since none of
-  this code has been compiler-checked yet, run the tests *immediately*
-  after assembling the project — it's the fastest way to catch any
-  leftover typos.
+  exported from the web PWA) actually match up in this app.
+
+- **Run the logic tests WITHOUT Xcode (Linux / CI / fast loop):** the
+  pure-Foundation core ships with a Swift Package Manager manifest
+  (`apple/Package.swift`), so you can build and test it on any platform with
+  a Swift toolchain — no Mac required:
+
+  ```sh
+  cd apple && swift test
+  ```
+
+  This compiles only `Sources/Model` (the SwiftUI-free solver core) and runs
+  the same 31-test suite. The SwiftUI UI (`Sources/Views`) and state
+  container (`Sources/Store`) need Apple's frameworks, so they're built by
+  the Xcode project above, not by SwiftPM. The core + tests have been
+  compiler-verified this way with Swift 6.1.2 on Linux (31/31 passing); the
+  UI layer still needs a first build in Xcode on a Mac.
 - **Run on your Mac:** at the top of the Xcode window, pick the **"My Mac"**
   destination from the scheme/destination dropdown, then press **Cmd+R**.
   The app should launch as a normal resizable macOS window.
