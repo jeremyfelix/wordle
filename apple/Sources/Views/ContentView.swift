@@ -3,8 +3,15 @@
 //  WordleSolver
 //
 //  The main (and only) screen: header, scrollable list of guess rows, an
-//  "Add Guess" button, a black-letters field, and the results list.
-//  Mirrors the single-page layout of index.html (<header> + <main>).
+//  "Add Guess" button, the word-list bar, the results section (with the bot
+//  card), and the saved-suggestions section. Mirrors the single-page layout
+//  of index.html (<header> + <main>).
+//
+//  NOTE: there used to be a separate "Black letters" text field here. It
+//  was removed because the app now matches index.html's actual gesture:
+//  tiles already start black, and tapping a tile cycles black -> yellow ->
+//  green -> black, so marking a letter "black" just means leaving (or
+//  returning) a filled tile at its default color. See GuessRowView/TileView.
 //
 
 import SwiftUI
@@ -24,12 +31,17 @@ struct ContentView: View {
 
                     actionButtons
 
-                    blackLettersField
+                    Divider()
+                        .background(Color.wordleBorder)
+
+                    WordListBarView()
+
+                    ResultsView()
 
                     Divider()
                         .background(Color.wordleBorder)
 
-                    ResultsView(candidates: store.candidates)
+                    SavedSuggestionsView()
                 }
                 .padding()
             }
@@ -105,36 +117,6 @@ struct ContentView: View {
                     .cornerRadius(6)
             }
             .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Black letters field
-
-    private var blackLettersField: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Black letters")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.wordleMuted)
-
-            TextField("e.g. dukfiht", text: $store.blackLetters)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.wordleText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(Color.wordleSurface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.wordleBorder, lineWidth: 1)
-                )
-                .cornerRadius(6)
-                // `.autocapitalization` only exists on iOS (UIKit-backed
-                // text input). macOS's TextField has no such concept, so
-                // this whole modifier must be compiled out there or the
-                // multiplatform build fails.
-                #if os(iOS)
-                .autocapitalization(.none)
-                .disableAutocorrection(true)
-                #endif
         }
     }
 }

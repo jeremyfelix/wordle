@@ -82,26 +82,42 @@ struct Guess: Identifiable, Codable, Equatable {
 }
 
 /// The fully-parsed set of constraints derived from all current guesses,
-/// equivalent to the Python `parse_patterns` return dictionary:
-/// `{'green': ..., 'yellow': ..., 'black': ..., 'doubled': ...}`.
+/// equivalent to the web app's `parseGuesses` return object in index.html:
+/// `{ green, yellow, black, doubled, maxCount }`.
 ///
-/// All letters stored here are lowercase, mirroring wordle.py's `.lower()`
-/// calls throughout `parse_patterns`.
+/// IMPORTANT — this models index.html (the canonical Wordle Solver the repo
+/// owner actually uses), NOT wordle.py. The two differ in two ways that matter
+/// here: index.html derives `black` from black-COLORED TILES (not a separate
+/// "--black" string), and it adds a `maxCount` constraint. Matching index.html
+/// exactly is what lets `WordleFilter.scenarioKey` reproduce the same bot
+/// suggestion keys, so suggestions exported from the web PWA import and match
+/// in this native app.
+///
+/// All letters stored here are lowercase.
 struct Constraints: Equatable {
     /// position -> required letter (green tiles).
     var green: [Int: Character] = [:]
 
     /// letter -> list of positions where that letter is known NOT to be
     /// (yellow tiles: the letter is in the word, but not at these spots).
+    /// Positions are intentionally NOT de-duplicated, mirroring index.html
+    /// (so `scenarioKey` stays byte-identical to the web app).
     var yellow: [Character: [Int]] = [:]
 
-    /// Letters confirmed to not be in the word at all.
+    /// Letters confirmed to not be in the word at all (a letter that is also
+    /// green/yellow somewhere is excluded from this set).
     var black: Set<Character> = []
 
     /// letter -> minimum number of times that letter must appear in the
     /// word. Only present for letters where the guesses imply 2+ copies
     /// (e.g. two green 't's, or 't' green once and yellow once in the SAME
-    /// guess). See `WordleFilter.buildConstraints` for the exact inference
-    /// rules, ported from wordle.py's doubled-letter logic.
+    /// guess). See `WordleFilter.buildConstraints`.
     var doubled: [Character: Int] = [:]
+
+    /// letter -> maximum number of times that letter may appear in the word.
+    /// Derived when a letter shows up as BOTH confirmed (green/yellow) and
+    /// black within a single guess: the black copy proves there are no more
+    /// than the confirmed count of that letter. Mirrors index.html's
+    /// `maxCount`.
+    var maxCount: [Character: Int] = [:]
 }
