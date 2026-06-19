@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Swift Package Manager build output (apple/Package.swift)
+.build/
